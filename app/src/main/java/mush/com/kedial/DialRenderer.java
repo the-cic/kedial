@@ -8,6 +8,7 @@ import android.graphics.PaintFlagsDrawFilter;
 import android.graphics.PointF;
 import android.graphics.RectF;
 import android.graphics.Typeface;
+import android.util.Log;
 
 /**
  * Created by mush on 22/06/2018.
@@ -30,11 +31,15 @@ public class DialRenderer {
     private Paint needleHeadPaint;
     private Paint lcdBgPaint;
     private Paint lcdTextPaint;
+    private Paint barPaint;
+    private Paint topBarPaint;
 
     private double inputValue;
-//    private double dir = 1;
     private double displayValue;
     private double secondsSinceLcdUpdate;
+
+    private final PointF center = new PointF(0, 0);
+    private final float radius = 220;
 
     public DialRenderer() {
         bgPaint = fillPaint(0xff222222);
@@ -45,6 +50,12 @@ public class DialRenderer {
 
         needlePaint = strokePaint(0xffff8010);
         needlePaint.setStrokeWidth(10);
+
+        barPaint = strokePaint(0xffff8010);
+        barPaint.setStrokeWidth(4);
+
+        topBarPaint = strokePaint(0xffff8010);
+        topBarPaint.setStrokeWidth(2);
 
         needleHeadPaint = fillPaint(0xff151515);
 
@@ -75,45 +86,83 @@ public class DialRenderer {
     }
 
     public void draw(Canvas canvas) {
-//        inputValue += dir;
-//        if (dir > 0 && inputValue > 130) {
-//            inputValue = 130;
-//            dir *= -1;
-//        } else if (dir < 0 && inputValue < 0) {
-//            inputValue = 0;
-//            dir *= -1;
-//        }
-
         DrawFilter filter = new PaintFlagsDrawFilter(0, Paint.ANTI_ALIAS_FLAG);
         canvas.setDrawFilter(filter);
 
         int sw = canvas.getWidth();
         int sh = canvas.getHeight();
 
-        PointF center = new PointF(sw / 2, sh / 2);
-        int radius = (int) (Math.min(sw, sh) * 0.4);
+        PointF screenCenter = new PointF(sw / 2, sh / 2);
+        int screenRadius = (int) (Math.min(sw, sh) * 0.4);
 
-        drawFrame(canvas, center, radius);
-        drawTicks(canvas, center, radius);
-        drawNeedle(canvas, center, radius);
+        float screenScale = screenRadius / radius;
+
+        canvas.save();
+
+        canvas.translate(screenCenter.x, screenCenter.y);
+        canvas.scale(screenScale, screenScale);
+
+        drawFrame(canvas);
+        drawTicks(canvas);
+        drawLcd(canvas);
+        drawEnergyGraph(canvas);
+        drawNeedle(canvas);
+
+        canvas.restore();
     }
 
-    private void drawFrame(Canvas canvas, PointF center, double radius) {
+    private void drawFrame(Canvas canvas) {
         canvas.drawCircle(center.x, center.y, (float) (radius * 1.05), bgPaint);
         RectF oval = new RectF((float)(center.x - radius), (float)(center.y - radius), (float)(center.x + radius), (float)(center.y + radius));
         canvas.drawArc(oval, 180 - 45, 270, false, linePaint);
+    }
 
+    private void drawLcd(Canvas canvas) {
         double lcdW = 0.2;
-        double lcdT = 0.55;
-        double lcdB = 0.8;
+        double lcdT = 0.6 - 0.3;
+        double textT = 0.8 - 0.3;
+        double lcdB = 0.85 - 0.3;
         canvas.drawRect(center.x - (float) (radius * lcdW), center.y + (float) (radius * lcdT), center.x + (float) (radius * lcdW), center.y + (float) (radius * lcdB), lcdBgPaint);
 
         int speed = (int) displayValue;
         String speedText = "" + speed;
-        canvas.drawText(speedText, center.x - (float) (speedText.length() - 1.2) * (lcdTextSize / 2), (float) (center.y + radius * 0.75), lcdTextPaint);
+        canvas.drawText(speedText, center.x - (float) (speedText.length() - 1.2) * (lcdTextSize / 2), (float) (center.y + radius * textT), lcdTextPaint);
     }
 
-    private void drawNeedle(Canvas canvas, PointF center, double radius) {
+    private void drawEnergyGraph(Canvas canvas) {
+        float x0 = center.x - radius * 0.2f;
+        float y0 = center.y + radius * 0.95f;
+
+        double valueIndex = inputValue / 10;
+        double valueRemainder = valueIndex % 1.0;
+
+        for (int i = 1; i <= 15; i++) {
+            // 35
+            // 10 : 1
+            // 20 : 2
+            // 30 : 3 = 3 * 1
+            // 4 : 2 = 4 * 0.5, 0.5 = (35 - 30) / 10
+
+            if (valueIndex > i -1) {
+                int barCount = valueIndex > i
+                        ? i
+                        : (int)(i * valueRemainder) ;
+
+                float x = x0 + (i - 1) * 6;
+
+                for (int j = 0; j < barCount; j++) {
+                    boolean top = (j == i - 1);
+                    float y = y0 - j * 5;
+                    if (top) {
+                        y += 1f;
+                    }
+                    canvas.drawLine(x, y, x + 5, y, top ? topBarPaint : barPaint);
+                }
+            }
+        }
+    }
+
+    private void drawNeedle(Canvas canvas) {
         double needleAngle = angleForValue(inputValue);
         double headRadius = radius * 0.2;
         PointF needleTip = point(center, needleAngle, radius * 0.95);
@@ -126,7 +175,7 @@ public class DialRenderer {
         canvas.drawArc(oval, 280, 60, false, hilightPaint);
     }
 
-    private void drawTicks(Canvas canvas, PointF center, double radius) {
+    private void drawTicks(Canvas canvas) {
         drawTickForValue(canvas, center, 0, radius, 0.6, null, 0.8);
         drawTickForRawValue(canvas, center, 5, radius);
         drawTickForRawValue(canvas, center, 15, radius);
@@ -140,12 +189,6 @@ public class DialRenderer {
         if (rawValue % 20 == 0) {
             length = 1.1;
         }
-//        if (rawValue == 0) {
-//            length = 1.1;
-//        }
-
-        //String text = i % 20 == 0 ? "" + i : null;
-        //drawTickForValue(canvas, center, i, radius / 3, length, text, 1.2);
 
         double square = squareValue(rawValue);
         if (square < 200) {
@@ -164,7 +207,6 @@ public class DialRenderer {
         PointF p2 = point(center, angle, radius * lengthFactor);
         canvas.drawLine(p1.x, p1.y, p2.x, p2.y, linePaint);
         if (text != null) {
-//            double ofs = radius * lengthFactor - radius;
             PointF p3 = point(center, angle, radius * textFactor);
             canvas.drawText(text, p3.x - text.length() * (textSize / 4), p3.y + (textSize / 2), textPaint);
         }

@@ -1,6 +1,5 @@
 package mush.com.kedial;
 
-import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -9,18 +8,26 @@ import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
+import mush.com.kedial.car.Car;
+import mush.com.kedial.car.CarSimulation;
+import mush.com.kedial.car.GpsCar;
+import mush.com.kedial.touch.TouchControls;
+
 /**
  * Created by mush on 22/06/2018.
  */
-public class MainSurfaceView extends SurfaceView implements SurfaceHolder.Callback {
+public class MainSurfaceView extends SurfaceView implements SurfaceHolder.Callback, GpsManager.GpsManagerListener, TouchControls.FpsToggleListener {
 
     private Paint fpsPaint;
     private DrawThread drawThread;
     private DialRenderer dialRenderer;
+    private GpsCar gpsCar;
     private CarSimulation carSimulation;
+    private Car car;
+    private TouchControls touchControls;
 
-    public MainSurfaceView(Context context) {
-        super(context);
+    public MainSurfaceView(MainActivity mainActivity) {
+        super(mainActivity);
 
         System.out.println("Main surface view");
         getHolder().addCallback(this);
@@ -28,7 +35,13 @@ public class MainSurfaceView extends SurfaceView implements SurfaceHolder.Callba
         setFocusable(true);
 
         dialRenderer = new DialRenderer();
+        gpsCar = new GpsCar();
         carSimulation = new CarSimulation();
+        touchControls = new TouchControls(carSimulation);
+        touchControls.setGpsToggleListener(mainActivity);
+        touchControls.setFpsToggleListener(this);
+
+        onGpsOff();
     }
 
     @Override
@@ -38,13 +51,13 @@ public class MainSurfaceView extends SurfaceView implements SurfaceHolder.Callba
             drawThread = new DrawThread(getHolder(), this);
             drawThread.setName("Draw Thread");
             drawThread.start();
-            drawThread.setTargetFps(60);
+//            drawThread.setTargetFps(60);
         }
     }
 
     @Override
     public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
-
+        touchControls.onResize(width, height);
     }
 
     @Override
@@ -72,20 +85,7 @@ public class MainSurfaceView extends SurfaceView implements SurfaceHolder.Callba
     public boolean onTouchEvent(MotionEvent event) {
         boolean b = super.onTouchEvent(event);
 
-//        System.out.println(MessageFormat.format("on touch event:{0}", event));
-        if (event.getX() > getWidth() / 2) {
-            if (event.getAction() == MotionEvent.ACTION_UP) {
-                carSimulation.coast();
-            } else {
-                if (event.getY() < getHeight() * 0.4) {
-                    carSimulation.accelerate();
-                } else if (event.getY() > getHeight() * 0.6) {
-                    carSimulation.brake();
-                } else {
-                    carSimulation.coast();
-                }
-            }
-        }
+        touchControls.onTouchEvent(event);
 
         return true;
     }
@@ -99,13 +99,14 @@ public class MainSurfaceView extends SurfaceView implements SurfaceHolder.Callba
         super.draw(canvas);
 
         dialRenderer.draw(canvas);
+        touchControls.draw(canvas);
 
         drawFps(canvas);
     }
 
     public void update(double secondsPerFrame) {
-        carSimulation.update(secondsPerFrame);
-        dialRenderer.update(carSimulation.getVelocity(), secondsPerFrame);
+        car.update(secondsPerFrame);
+        dialRenderer.update(car.getSpeed(), secondsPerFrame);
     }
 
     private void drawFps(Canvas canvas) {
@@ -121,7 +122,7 @@ public class MainSurfaceView extends SurfaceView implements SurfaceHolder.Callba
         }
 
 //        canvas.drawText((int)drawThread.getAverageFps() + " FPS, drop: " + fpsDropPerc, 10, 20, paint);
-        canvas.drawText((int)drawThread.getAverageFps() + " FPS", 10, 20, paint);
+        canvas.drawText((int) drawThread.getAverageFps() + " FPS", 10, 20, paint);
    }
 
     private Paint getFpsPaint() {
@@ -136,5 +137,28 @@ public class MainSurfaceView extends SurfaceView implements SurfaceHolder.Callba
         }
 
         return fpsPaint;
+    }
+
+    @Override
+    public void onGpsSpeed(Float metersPerSecond) {
+        gpsCar.setSpeedFromGps(metersPerSecond);
+    }
+
+    @Override
+    public void onGpsOn() {
+        car = gpsCar;
+        gpsCar.reset();
+        touchControls.setGpsOn(true);
+    }
+
+    @Override
+    public void onGpsOff() {
+        car = carSimulation;
+        touchControls.setGpsOn(false);
+    }
+
+    @Override
+    public void fpsToggled(boolean value) {
+        drawThread.setTargetFps(value ? 60 : 30);
     }
 }

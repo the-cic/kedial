@@ -5,12 +5,15 @@ import android.os.Bundle;
 import android.view.Window;
 import android.view.WindowManager;
 
+import mush.com.kedial.touch.TouchControls;
+
 /**
  * Created by mush on 22/06/2018.
  */
-public class MainActivity extends Activity {
+public class MainActivity extends Activity implements TouchControls.GpsToggleListener {
 
     private MainSurfaceView mainView;
+    private GpsManager gpsManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -28,6 +31,11 @@ public class MainActivity extends Activity {
         }
 
         setContentView(mainView);
+
+        if (gpsManager == null) {
+            gpsManager = new GpsManager();
+            gpsManager.setListener(mainView);
+        }
     }
 
     @Override
@@ -42,4 +50,17 @@ public class MainActivity extends Activity {
         System.out.println("onResume");
     }
 
+    @Override
+    public void gpsToggled(boolean toOn) {
+        if (gpsManager != null) {
+            if (toOn) {
+                gpsManager.startListening(this);
+                System.out.println("gps enabled: " + gpsManager.checkGpsEnabled());
+                mainView.onGpsOn();
+            } else {
+                gpsManager.stopListening();
+                mainView.onGpsOff();
+            }
+        }
+    }
 }
