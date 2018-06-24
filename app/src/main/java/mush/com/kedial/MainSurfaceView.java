@@ -9,8 +9,6 @@ import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
-import java.text.MessageFormat;
-
 /**
  * Created by mush on 22/06/2018.
  */
@@ -19,8 +17,7 @@ public class MainSurfaceView extends SurfaceView implements SurfaceHolder.Callba
     private Paint fpsPaint;
     private DrawThread drawThread;
     private DialRenderer dialRenderer;
-    private Car car;
-    private int dir = 0;
+    private CarSimulation carSimulation;
 
     public MainSurfaceView(Context context) {
         super(context);
@@ -31,7 +28,7 @@ public class MainSurfaceView extends SurfaceView implements SurfaceHolder.Callba
         setFocusable(true);
 
         dialRenderer = new DialRenderer();
-        car = new Car();
+        carSimulation = new CarSimulation();
     }
 
     @Override
@@ -77,17 +74,15 @@ public class MainSurfaceView extends SurfaceView implements SurfaceHolder.Callba
 
 //        System.out.println(MessageFormat.format("on touch event:{0}", event));
         if (event.getX() > getWidth() / 2) {
-//            System.out.println("Right");
             if (event.getAction() == MotionEvent.ACTION_UP) {
-//                System.out.println("Finished");
-                dir = 0;
+                carSimulation.coast();
             } else {
                 if (event.getY() < getHeight() * 0.4) {
-                    dir = 1;
+                    carSimulation.accelerate();
                 } else if (event.getY() > getHeight() * 0.6) {
-                    dir = -1;
+                    carSimulation.brake();
                 } else {
-                    dir = 0;
+                    carSimulation.coast();
                 }
             }
         }
@@ -109,20 +104,8 @@ public class MainSurfaceView extends SurfaceView implements SurfaceHolder.Callba
     }
 
     public void update(double secondsPerFrame) {
-        if (dir > 0) {
-            car.accelerate(secondsPerFrame);
-//            if (car.getVelocity() > 120) {
-//                dir = -1;
-//            }
-        } else if (dir < 0) {
-            car.brake(secondsPerFrame);
-//            if (car.getVelocity() < 1) {
-//                dir = 1;
-//            }
-        } else {
-            car.coast(secondsPerFrame);
-        }
-        dialRenderer.update(car.getVelocity(), secondsPerFrame);
+        carSimulation.update(secondsPerFrame);
+        dialRenderer.update(carSimulation.getVelocity(), secondsPerFrame);
     }
 
     private void drawFps(Canvas canvas) {
