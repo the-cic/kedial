@@ -42,7 +42,7 @@ public class DialRenderer {
     private final float radius = 220;
 
     public DialRenderer() {
-        bgPaint = fillPaint(0xff222222);
+        bgPaint = fillPaint(0xff333333);
 
         linePaint = strokePaint(Color.WHITE);
         hilightPaint = strokePaint(0xff808080);

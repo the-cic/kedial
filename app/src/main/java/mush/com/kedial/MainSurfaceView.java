@@ -3,76 +3,79 @@ package mush.com.kedial;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.RectF;
 import android.graphics.Typeface;
+import android.util.Log;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
-import mush.com.kedial.car.Car;
-import mush.com.kedial.car.CarSimulation;
-import mush.com.kedial.car.GpsCar;
+import mush.com.kedial.touch.TouchControl;
 import mush.com.kedial.touch.TouchControls;
 
 /**
  * Created by mush on 22/06/2018.
  */
-public class MainSurfaceView extends SurfaceView implements SurfaceHolder.Callback, GpsManager.GpsManagerListener, TouchControls.FpsToggleListener {
+public class MainSurfaceView extends SurfaceView implements SurfaceHolder.Callback, TouchControl.TouchControlDelegate, MainContent.MainContentDelegate {
 
     private Paint fpsPaint;
     private DrawThread drawThread;
     private DialRenderer dialRenderer;
-    private GpsCar gpsCar;
-    private CarSimulation carSimulation;
-    private Car car;
     private TouchControls touchControls;
+    private MainContent content;
 
     public MainSurfaceView(MainActivity mainActivity) {
         super(mainActivity);
 
-        System.out.println("Main surface view");
+        content = MainContent.get();
+
+        Log.i("view", "new MainSurfaceView");
         getHolder().addCallback(this);
 
         setFocusable(true);
 
         dialRenderer = new DialRenderer();
-        gpsCar = new GpsCar();
-        carSimulation = new CarSimulation();
-        touchControls = new TouchControls(carSimulation);
-        touchControls.setGpsToggleListener(mainActivity);
-        touchControls.setFpsToggleListener(this);
-
-        onGpsOff();
+        touchControls = new TouchControls(content.getCarSimulation());
+        touchControls.setGpsToggleDelegate(content);
+        touchControls.setFpsToggleDelegate(this);
     }
 
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
-        System.out.println("Surface Created");
+        Log.i("view", "Surface Created");
+
+        content.setDelegate(this);
+        content.checkGpsToggled();
+
         if (drawThread == null) {
             drawThread = new DrawThread(getHolder(), this);
             drawThread.setName("Draw Thread");
             drawThread.start();
-//            drawThread.setTargetFps(60);
+            drawThread.setTargetFps(content.targetFps);
         }
     }
 
     @Override
     public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+        Log.i("view", "Surface Changed");
         touchControls.onResize(width, height);
     }
 
     @Override
     public void surfaceDestroyed(SurfaceHolder holder) {
-        System.out.println("Surface Destroyed");
+        Log.i("view", "Surface Destroyed");
+
+        content.setDelegate(null);
 
         boolean retry = true;
         while (retry) {
             try {
-                System.out.println("set running false");
+                Log.i("view", "set running false");
                 drawThread.stopRunning();
                 System.out.println("join");
                 drawThread.join();
                 retry = false;
-                System.out.println("running false and thread joined");
+                Log.i("view", "running false and thread joined");
 
             } catch (InterruptedException e) {
                 e.printStackTrace();
@@ -93,7 +96,7 @@ public class MainSurfaceView extends SurfaceView implements SurfaceHolder.Callba
     @Override
     public void draw(Canvas canvas) {
         if (canvas == null) {
-            System.out.println("Canvas is null!");
+            Log.i("view", "Canvas is null!");
             return;
         }
         super.draw(canvas);
@@ -101,15 +104,15 @@ public class MainSurfaceView extends SurfaceView implements SurfaceHolder.Callba
         dialRenderer.draw(canvas);
         touchControls.draw(canvas);
 
-        drawFps(canvas);
+        drawLabels(canvas);
     }
 
     public void update(double secondsPerFrame) {
-        car.update(secondsPerFrame);
-        dialRenderer.update(car.getSpeed(), secondsPerFrame);
+        content.getCar().update(secondsPerFrame);
+        dialRenderer.update(content.getCar().getSpeed(), secondsPerFrame);
     }
 
-    private void drawFps(Canvas canvas) {
+    private void drawLabels(Canvas canvas) {
         double fpsDropPerc = drawThread.getAverageFpsDropPercent();
         Paint paint = getFpsPaint();
 
@@ -121,8 +124,17 @@ public class MainSurfaceView extends SurfaceView implements SurfaceHolder.Callba
             paint.setColor(Color.GREEN);
         }
 
-//        canvas.drawText((int)drawThread.getAverageFps() + " FPS, drop: " + fpsDropPerc, 10, 20, paint);
-        canvas.drawText((int) drawThread.getAverageFps() + " FPS", 10, 20, paint);
+        RectF area = touchControls.fps.getArea();
+        canvas.drawText((int) drawThread.getAverageFps() + " FPS", area.left + 7, area.centerY() + 7, paint);
+
+        if (content.isGpsToggled()) {
+            paint.setColor(Color.WHITE);
+        } else {
+            paint.setColor(Color.GRAY);
+        }
+
+        area = touchControls.gps.getArea();
+        canvas.drawText("GPS", area.centerX() - 20, area.centerY() + 7, paint);
    }
 
     private Paint getFpsPaint() {
@@ -140,25 +152,23 @@ public class MainSurfaceView extends SurfaceView implements SurfaceHolder.Callba
     }
 
     @Override
-    public void onGpsSpeed(Float metersPerSecond) {
-        gpsCar.setSpeedFromGps(metersPerSecond);
+    public void onPress(TouchControl control) {
+        int fps = content.targetFps / 2;
+        if (fps < 15) {
+            fps = 60;
+        }
+        content.targetFps = fps;
+        drawThread.setTargetFps(content.targetFps);
     }
 
     @Override
-    public void onGpsOn() {
-        car = gpsCar;
-        gpsCar.reset();
-        touchControls.setGpsOn(true);
+    public void onGpsEnabled(boolean enabled) {
+        Log.i("view", "gps enabled:"+enabled);
+        touchControls.setGpsOn(enabled);
     }
 
     @Override
-    public void onGpsOff() {
-        car = carSimulation;
-        touchControls.setGpsOn(false);
-    }
-
-    @Override
-    public void fpsToggled(boolean value) {
-        drawThread.setTargetFps(value ? 60 : 30);
+    public void onGpsActive(boolean active) {
+        Log.i("view", "gps active:"+active);
     }
 }

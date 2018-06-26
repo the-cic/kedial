@@ -2,6 +2,7 @@ package mush.com.kedial;
 
 import android.app.Activity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Window;
 import android.view.WindowManager;
 
@@ -10,21 +11,26 @@ import mush.com.kedial.touch.TouchControls;
 /**
  * Created by mush on 22/06/2018.
  */
-public class MainActivity extends Activity implements TouchControls.GpsToggleListener {
+public class MainActivity extends Activity {
 
     private MainSurfaceView mainView;
-    private GpsManager gpsManager;
+
+    public MainActivity() {
+        super();
+        Log.i("main", "new MainActivity");
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        System.out.println("on Create");
+        Log.i("main", "onCreate");
 
         requestWindowFeature(Window.FEATURE_NO_TITLE);
 
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED, WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED);
+        getWindow().setFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON, WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         if (mainView == null) {
             mainView = new MainSurfaceView(this);
@@ -32,35 +38,25 @@ public class MainActivity extends Activity implements TouchControls.GpsToggleLis
 
         setContentView(mainView);
 
-        if (gpsManager == null) {
-            gpsManager = new GpsManager();
-            gpsManager.setListener(mainView);
-        }
+        MainContent.get().setActivity(this);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        MainContent.get().setActivity(null);
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-        System.out.println("onPause");
+        Log.i("main", "onPause");
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        System.out.println("onResume");
+        Log.i("main", "onResume");
     }
 
-    @Override
-    public void gpsToggled(boolean toOn) {
-        if (gpsManager != null) {
-            if (toOn) {
-                gpsManager.startListening(this);
-                System.out.println("gps enabled: " + gpsManager.checkGpsEnabled());
-                mainView.onGpsOn();
-            } else {
-                gpsManager.stopListening();
-                mainView.onGpsOff();
-            }
-        }
-    }
 }

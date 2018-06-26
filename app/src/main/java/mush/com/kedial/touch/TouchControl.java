@@ -13,10 +13,15 @@ import java.util.Collection;
  */
 public class TouchControl {
 
+    public interface TouchControlDelegate {
+        public void onPress(TouchControl control);
+    }
+
     private RectF area;
     private boolean pressed;
     private boolean visible;
     private Paint paint;
+    private TouchControlDelegate delegate;
 
     public TouchControl(RectF area) {
         this.area = area;
@@ -29,24 +34,42 @@ public class TouchControl {
         paint.setStrokeWidth(2);
     }
 
+    public void setDelegate(TouchControlDelegate delegate) {
+        this.delegate = delegate;
+    }
+
     public boolean onTouchEvent(MotionEvent event) {
-        if (area != null && visible && area.contains(event.getX(), event.getY())) {
+        boolean wasPressed = pressed;
 
-            if (event.getAction() == MotionEvent.ACTION_UP) {
-                pressed = false;
+        try {
+            if (area != null && visible && area.contains(event.getX(), event.getY())) {
+
+                if (event.getAction() == MotionEvent.ACTION_UP) {
+                    pressed = false;
+                } else {
+                    pressed = true;
+                }
+
+                return true;
             } else {
-                pressed = true;
+                pressed = false;
+                return false;
             }
-
-            return true;
-        } else {
-            pressed = false;
-            return false;
+        } finally {
+            if (delegate != null && pressed != wasPressed) {
+                if (pressed) {
+                    delegate.onPress(this);
+                }
+            }
         }
     }
 
     public void setArea(RectF area) {
         this.area = area;
+    }
+
+    public RectF getArea() {
+        return area;
     }
 
     public boolean isPressed() {

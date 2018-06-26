@@ -11,6 +11,7 @@ import android.location.LocationManager;
 import android.os.Bundle;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
+import android.util.Log;
 
 import java.util.List;
 
@@ -18,6 +19,8 @@ import java.util.List;
  * Created by mush on 24/06/2018.
  */
 public class GpsManager implements GpsStatus.Listener, LocationListener {
+
+    private static final String TAG = GpsManager.class.getSimpleName();
 
     public interface GpsManagerListener {
         public void onGpsSpeed(Float metersPerSecond);
@@ -32,7 +35,7 @@ public class GpsManager implements GpsStatus.Listener, LocationListener {
     private GpsManagerListener listener;
 
     public void startListening(Activity activity) {
-        System.out.println("Starting listening");
+        Log.i(TAG, "Starting listening");
 
         if (locationManager == null) {
             locationManager = (LocationManager)activity.getSystemService(Context.LOCATION_SERVICE);
@@ -50,17 +53,17 @@ public class GpsManager implements GpsStatus.Listener, LocationListener {
         final String bestProvider = locationManager.getBestProvider(criteria, true);
 
         try {
-            System.out.println("checking self permission");
+            Log.i(TAG, "checking self permission");
             if (ContextCompat.checkSelfPermission(activity.getApplicationContext(), android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED ) {
-                System.out.println("not granted, requesting permission");
+                Log.i(TAG, "not granted, requesting permission");
                 ActivityCompat.requestPermissions(activity, new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION}, 101);
-                System.out.println("ok?");
+                Log.i(TAG, "ok?");
             } else {
-                System.out.println("granted");
+                Log.i(TAG, "granted");
             }
 
             if (bestProvider != null && bestProvider.length() > 0) {
-                System.out.println("bestprovider: " + bestProvider);
+                Log.i(TAG, "best provider: " + bestProvider);
                 locationManager.requestLocationUpdates(bestProvider, gpsMinTime,
                         gpsMinDistance, this);
             }
@@ -68,7 +71,7 @@ public class GpsManager implements GpsStatus.Listener, LocationListener {
                 final List<String> providers = locationManager.getProviders(true);
                 for (final String provider : providers)
                 {
-                    System.out.println("provider: " + provider);
+                    Log.i(TAG, "provider: " + provider);
                     locationManager.requestLocationUpdates(provider, gpsMinTime,
                             gpsMinDistance, this);
                 }
@@ -79,11 +82,11 @@ public class GpsManager implements GpsStatus.Listener, LocationListener {
     }
 
     public void stopListening() {
-        System.out.println("Stopping listening");
+        Log.i(TAG, "Stopping listening");
         try
         {
             if (locationManager != null) {
-                System.out.println("remove updates");
+                Log.i(TAG, "remove updates");
                 locationManager.removeUpdates(this);
             }
             locationManager = null;
@@ -103,12 +106,20 @@ public class GpsManager implements GpsStatus.Listener, LocationListener {
 
     @Override
     public void onGpsStatusChanged(int event) {
-        System.out.println("status changed: " + event);
+        Log.i(TAG, "status changed: " + event);
+        switch (event) {
+            case GpsStatus.GPS_EVENT_STARTED:
+                listener.onGpsOn();
+                break;
+            case GpsStatus.GPS_EVENT_STOPPED:
+                listener.onGpsOff();
+                break;
+        }
     }
 
     @Override
     public void onLocationChanged(Location location) {
-        System.out.println("location changed: " + location);
+        Log.i(TAG, "location changed: " + location);
 
         listener.onGpsSpeed(location.getSpeed());
 
@@ -117,17 +128,17 @@ public class GpsManager implements GpsStatus.Listener, LocationListener {
 
     @Override
     public void onStatusChanged(String provider, int status, Bundle extras) {
-        System.out.println("location status changed: " + status);
+        Log.i(TAG, "location status changed: " + status);
     }
 
     @Override
     public void onProviderEnabled(String provider) {
-        System.out.println("location on provider enabled: " + provider);
+        Log.i(TAG, "location on provider enabled: " + provider);
     }
 
     @Override
     public void onProviderDisabled(String provider) {
-        System.out.println("location on provider disabled: " + provider);
+        Log.i(TAG, "location on provider disabled: " + provider);
     }
 
     public void setListener(GpsManagerListener listener) {

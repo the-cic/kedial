@@ -16,23 +16,12 @@ public class TouchControls {
 
     public TouchControl accelerate;
     public TouchControl brake;
-    public ToggleTouchControl gps;
-    public ToggleTouchControl fps;
+    public TouchControl gps;
+    public TouchControl fps;
 
     private List<TouchControl> controls;
 
     private CarSimulation carSimulation;
-
-    public interface GpsToggleListener {
-        public void gpsToggled(boolean value);
-    }
-
-    public interface FpsToggleListener {
-        public void fpsToggled(boolean value);
-    }
-
-    private GpsToggleListener gpsToggleListener;
-    private FpsToggleListener fpsToggleListener;
 
     public TouchControls(CarSimulation carSimulation) {
         controls = new ArrayList<>();
@@ -72,24 +61,13 @@ public class TouchControls {
         } else {
             carSimulation.coast();
         }
-        if (gps.isChanged()) {
-            System.out.println("Changed to: " + gps.isPressed());
-            if (gpsToggleListener != null) {
-                gpsToggleListener.gpsToggled(gps.isPressed());
-            }
-        }
-        if (fps.isChanged()) {
-            if (fpsToggleListener != null) {
-                fpsToggleListener.fpsToggled(fps.isPressed());
-            }
-        }
     }
 
     private void setup() {
         accelerate = new TouchControl(null);
         brake = new TouchControl(null);
-        gps = new ToggleTouchControl(null);
-        fps = new ToggleTouchControl(null);
+        gps = new TouchControl(null);
+        fps = new TouchControl(null);
         addControl(accelerate);
         addControl(brake);
         addControl(gps);
@@ -100,21 +78,33 @@ public class TouchControls {
         float button = Math.min(width * 0.2f, height * 0.2f);
         float margin = Math.min(width * 0.05f, height * 0.05f);
         float middle = height * 0.5f;
+        float center = width * 0.5f;
 
-        accelerate.setArea(new RectF(width - button - margin, middle - margin * 0.5f - button, width - margin, middle - margin * 0.5f));
-        brake.setArea(new RectF(width - button - margin, middle + margin * 0.5f, width - margin, middle + margin * 0.5f + button));
-
-        gps.setArea(new RectF(margin, middle - button * 0.5f, margin + button, middle + button * 0.5f));
+        if (width > height) {
+            gps
+                    .setArea(new RectF(margin, middle - button * 0.5f, margin + button, middle + button * 0.5f));
+            accelerate
+                    .setArea(new RectF(width - button - margin, middle - margin * 0.5f - button, width - margin, middle - margin * 0.5f));
+            brake
+                    .setArea(new RectF(width - button - margin, middle + margin * 0.5f, width - margin, middle + margin * 0.5f + button));
+        } else {
+            gps
+                    .setArea(new RectF(center - button * 0.5f, margin, center + button * 0.5f, margin + button));
+            accelerate
+                    .setArea(new RectF(center + margin * 0.5f, height - margin - button, center + button + margin * 0.5f, height - margin));
+            brake
+                    .setArea(new RectF(center - button - margin * 0.5f, height - margin - button, center - margin * 0.5f, height - margin));
+        }
 
         fps.setArea(new RectF(margin, margin, margin + button, margin + button * 0.25f));
     }
 
-    public void setGpsToggleListener(GpsToggleListener listener) {
-        this.gpsToggleListener = listener;
+    public void setGpsToggleDelegate(TouchControl.TouchControlDelegate delegate) {
+        this.gps.setDelegate(delegate);
     }
 
-    public void setFpsToggleListener(FpsToggleListener listener) {
-        this.fpsToggleListener = listener;
+    public void setFpsToggleDelegate(TouchControl.TouchControlDelegate delegate) {
+        this.fps.setDelegate(delegate);
     }
 
     public void setGpsOn(boolean isOn) {
