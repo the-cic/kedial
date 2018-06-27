@@ -45,7 +45,7 @@ public class MainSurfaceView extends SurfaceView implements SurfaceHolder.Callba
         Log.i("view", "Surface Created");
 
         content.setDelegate(this);
-        content.checkGpsToggled();
+        showGpsEnable(content.isGpsToggled());
 
         if (drawThread == null) {
             drawThread = new DrawThread(getHolder(), this);
@@ -164,6 +164,11 @@ public class MainSurfaceView extends SurfaceView implements SurfaceHolder.Callba
     @Override
     public void onGpsEnabled(boolean enabled) {
         Log.i("view", "gps enabled:"+enabled);
+        showGpsEnable(enabled);
+        dialRenderer.reset();
+    }
+
+    private void showGpsEnable(boolean enabled) {
         touchControls.setGpsOn(enabled);
     }
 

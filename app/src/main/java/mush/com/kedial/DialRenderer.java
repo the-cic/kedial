@@ -43,7 +43,8 @@ public class DialRenderer {
     private final float radius = 220;
 
     private double lastEnergyValue;
-    private double[] lostEnergy = new double[]{0, 0, 0, 0, 0, 0, 0, 0};
+    private static double[] lostEnergy = null;
+    private double lostEnergyAnimationPercent;
 
     public DialRenderer() {
         bgPaint = fillPaint(0xff222222);
@@ -80,6 +81,11 @@ public class DialRenderer {
         inputValue = 0;
         displayValue = 0;
         secondsSinceLcdUpdate = 0;
+
+        if (lostEnergy == null) {
+            lostEnergy = new double[24];
+            reset();
+        }
     }
 
     public void update(double value, double secondsPerFrame) {
@@ -96,10 +102,13 @@ public class DialRenderer {
 
     public void reset() {
         inputValue = 0;
+        displayValue = 0;
         lastEnergyValue = 0;
+
         for (int i = 0; i < lostEnergy.length; i++) {
             lostEnergy[i] = 0;
         }
+        lostEnergyAnimationPercent = 0;
     }
 
     private double getEnergy() {
@@ -109,6 +118,12 @@ public class DialRenderer {
     private void updateLostEnergy(double secondsPerFrame) {
         double energy = getEnergy();
         double offset = energy - lastEnergyValue;
+
+        lostEnergyAnimationPercent -= secondsPerFrame * 10;
+
+        if (lostEnergyAnimationPercent < 0) {
+            lostEnergyAnimationPercent = 0;
+        }
 
         if (offset < 0) {
             advanceLostEnergy(-offset /** secondsPerFrame*/);
@@ -126,6 +141,7 @@ public class DialRenderer {
             double remainder = lostEnergy[0] - max;
             lostEnergy[0] = max;
             shiftLostEnergy();
+            lostEnergyAnimationPercent = 1;
             lostEnergy[0] = remainder;
         }
     }
@@ -162,7 +178,8 @@ public class DialRenderer {
 
         drawFrame(canvas);
         drawTicks(canvas);
-        drawLcd(canvas);
+        // drawLcd(canvas);
+        // drawLcd(canvas);
 //        drawEnergyGraph(canvas);
         drawEnergyBars(canvas);
         drawNeedle(canvas);
@@ -238,7 +255,10 @@ public class DialRenderer {
         }
 
         float x0 = center.x - maxColumn * 0.5f * 6;
-        float y0 = center.y + radius * 0.95f;
+        float x1 = center.x + maxColumn * 0.5f * 6;
+        float y0 = center.y + radius * 0.65f;
+
+        canvas.drawRect(x0 - 3, y0 - radius * 0.35f - 5, x1 + 3, y0 + 5, lcdBgPaint);
 
         for (int i = 0; i < bars; i++) {
             int u = i % maxColumn;
@@ -250,12 +270,13 @@ public class DialRenderer {
     }
 
     private void drawLostEnergyBars(Canvas canvas) {
-        float x0 = center.x + radius * 0.2f;
-        float y0 = center.y + radius * 0.95f;
+        float x0 = center.x - (lostEnergy.length * 6) / 2;
+        float y0 = center.y + radius * 0.90f;
+
+        x0 -= lostEnergyAnimationPercent * 6;
 
         for (int i = 0; i < lostEnergy.length; i++) {
             int bars = (int) (Math.round(lostEnergy[i] / 100));
-//            drawEnergyBar(canvas, x0 + i * 6, (float) (y0 - lostEnergy[i]), darkBarPaint);
             for (int j = 0; j < bars; j++) {
                 drawEnergyBar(canvas, x0 + i * 6, y0 - j * 5, darkBarPaint);
             }
