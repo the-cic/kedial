@@ -32,6 +32,7 @@ public class DialRenderer {
     private Paint lcdBgPaint;
     private Paint lcdTextPaint;
     private Paint barPaint;
+    private Paint darkBarPaint;
     private Paint topBarPaint;
 
     private double inputValue;
@@ -41,8 +42,11 @@ public class DialRenderer {
     private final PointF center = new PointF(0, 0);
     private final float radius = 220;
 
+    private double lastEnergyValue;
+    private double[] lostEnergy = new double[]{0, 0, 0, 0, 0, 0, 0, 0};
+
     public DialRenderer() {
-        bgPaint = fillPaint(0xff333333);
+        bgPaint = fillPaint(0xff222222);
 
         linePaint = strokePaint(Color.WHITE);
         hilightPaint = strokePaint(0xff808080);
@@ -53,6 +57,9 @@ public class DialRenderer {
 
         barPaint = strokePaint(0xffff8010);
         barPaint.setStrokeWidth(4);
+
+        darkBarPaint = strokePaint(0xfff04010);
+        darkBarPaint.setStrokeWidth(4);
 
         topBarPaint = strokePaint(0xffff8010);
         topBarPaint.setStrokeWidth(2);
@@ -83,6 +90,57 @@ public class DialRenderer {
             displayValue = inputValue;
             secondsSinceLcdUpdate = 0;
         }
+
+        updateLostEnergy(secondsPerFrame);
+    }
+
+    public void reset() {
+        inputValue = 0;
+        lastEnergyValue = 0;
+        for (int i = 0; i < lostEnergy.length; i++) {
+            lostEnergy[i] = 0;
+        }
+    }
+
+    private double getEnergy() {
+        return inputValue * inputValue / 2;
+    }
+
+    private void updateLostEnergy(double secondsPerFrame) {
+        double energy = getEnergy();
+        double offset = energy - lastEnergyValue;
+
+        if (offset < 0) {
+            advanceLostEnergy(-offset /** secondsPerFrame*/);
+        } else {
+            shiftNonZeroLostEnergy();
+        }
+
+        lastEnergyValue = energy;
+    }
+
+    private void advanceLostEnergy(double offset) {
+        double max = 500;
+        lostEnergy[0] += offset;
+        if (lostEnergy[0] > max) {
+            double remainder = lostEnergy[0] - max;
+            lostEnergy[0] = max;
+            shiftLostEnergy();
+            lostEnergy[0] = remainder;
+        }
+    }
+
+    private void shiftNonZeroLostEnergy() {
+        if (lostEnergy[0] > 0) {
+            shiftLostEnergy();
+        }
+    }
+
+    private void shiftLostEnergy() {
+        for (int i = lostEnergy.length - 1; i > 0; i--) {
+            lostEnergy[i] = lostEnergy[i - 1];
+        }
+        lostEnergy[0] = 0;
     }
 
     public void draw(Canvas canvas) {
@@ -105,7 +163,8 @@ public class DialRenderer {
         drawFrame(canvas);
         drawTicks(canvas);
         drawLcd(canvas);
-        drawEnergyGraph(canvas);
+//        drawEnergyGraph(canvas);
+        drawEnergyBars(canvas);
         drawNeedle(canvas);
 
         canvas.restore();
@@ -131,7 +190,7 @@ public class DialRenderer {
 
     private void drawEnergyGraph(Canvas canvas) {
         float x0 = center.x - radius * 0.2f;
-        float y0 = center.y + radius * 0.95f;
+        float y0 = center.y + radius * (0.95f + 0.2f);
 
         double valueIndex = inputValue / 10;
         double valueRemainder = valueIndex % 1.0;
@@ -156,8 +215,49 @@ public class DialRenderer {
                     if (top) {
                         y += 1f;
                     }
-                    canvas.drawLine(x, y, x + 5, y, top ? topBarPaint : barPaint);
+                    drawEnergyBar(canvas, x, y, top ? topBarPaint : barPaint);
                 }
+            }
+        }
+    }
+
+    private void drawEnergyBar(Canvas canvas, float x, float y, Paint paint) {
+        canvas.drawLine(x, y, x + 5, y, paint);
+    }
+
+    private void drawEnergyBars(Canvas canvas) {
+        double energy = getEnergy();
+        int bars = (int) (Math.round(energy / 100));
+
+        int maxColumn = 5;
+        if (1.0 * bars / maxColumn > 16) {
+            maxColumn = 7;
+        }
+        if (1.0 * bars / maxColumn > 16) {
+            maxColumn = 9;
+        }
+
+        float x0 = center.x - maxColumn * 0.5f * 6;
+        float y0 = center.y + radius * 0.95f;
+
+        for (int i = 0; i < bars; i++) {
+            int u = i % maxColumn;
+            int v = i / maxColumn;
+            drawEnergyBar(canvas, x0 + u * 6, y0 - v * 5, barPaint);
+        }
+
+        drawLostEnergyBars(canvas);
+    }
+
+    private void drawLostEnergyBars(Canvas canvas) {
+        float x0 = center.x + radius * 0.2f;
+        float y0 = center.y + radius * 0.95f;
+
+        for (int i = 0; i < lostEnergy.length; i++) {
+            int bars = (int) (Math.round(lostEnergy[i] / 100));
+//            drawEnergyBar(canvas, x0 + i * 6, (float) (y0 - lostEnergy[i]), darkBarPaint);
+            for (int j = 0; j < bars; j++) {
+                drawEnergyBar(canvas, x0 + i * 6, y0 - j * 5, darkBarPaint);
             }
         }
     }
