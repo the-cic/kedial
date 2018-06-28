@@ -83,7 +83,7 @@ public class DialRenderer {
         secondsSinceLcdUpdate = 0;
 
         if (lostEnergy == null) {
-            lostEnergy = new double[24];
+            lostEnergy = new double[15];
             reset();
         }
     }
@@ -270,15 +270,22 @@ public class DialRenderer {
     }
 
     private void drawLostEnergyBars(Canvas canvas) {
-        float x0 = center.x - (lostEnergy.length * 6) / 2;
-        float y0 = center.y + radius * 0.90f;
+        int maxColumn = 5;
+        float x0 = center.x - maxColumn * 0.5f * 6;
+        float y0 = center.y + radius * 0.7f;
 
-        x0 -= lostEnergyAnimationPercent * 6;
+        y0 -= lostEnergyAnimationPercent * 5;
+
+//        float x0 = center.x - (lostEnergy.length * 6) / 2;
+//        float y0 = center.y + radius * 0.90f;
+
+//        x0 -= lostEnergyAnimationPercent * 6;
 
         for (int i = 0; i < lostEnergy.length; i++) {
             int bars = (int) (Math.round(lostEnergy[i] / 100));
             for (int j = 0; j < bars; j++) {
-                drawEnergyBar(canvas, x0 + i * 6, y0 - j * 5, darkBarPaint);
+                drawEnergyBar(canvas, x0 + j * 6, y0 + i * 5, darkBarPaint);
+//                drawEnergyBar(canvas, x0 + i * 6, y0 - j * 5, darkBarPaint);
             }
         }
     }
