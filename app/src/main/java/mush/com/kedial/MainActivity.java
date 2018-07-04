@@ -37,14 +37,11 @@ public class MainActivity extends Activity {
         }
 
         setContentView(mainView);
-
-        MainContent.get().setActivity(this);
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        MainContent.get().setActivity(null);
     }
 
     @Override

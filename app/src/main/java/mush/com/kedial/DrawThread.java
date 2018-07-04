@@ -89,8 +89,6 @@ public class DrawThread extends Thread {
         try {
             canvas = this.surfaceHolder.lockCanvas();
             synchronized (surfaceHolder) {
-                //this.gameContentView.update(elapsedSeconds);
-                //this.gameContentView.draw(canvas);
                 this.surfaceView.update(secondsPerFrame);
                 this.surfaceView.draw(canvas);
             }

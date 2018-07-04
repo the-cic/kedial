@@ -1,5 +1,6 @@
 package mush.com.kedial;
 
+import android.app.Activity;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -16,16 +17,17 @@ import mush.com.kedial.touch.TouchControls;
 /**
  * Created by mush on 22/06/2018.
  */
-public class MainSurfaceView extends SurfaceView implements SurfaceHolder.Callback, TouchControl.TouchControlDelegate, MainContent.MainContentDelegate {
+public class MainSurfaceView extends SurfaceView implements SurfaceHolder.Callback, TouchControl.TouchControlDelegate {
 
     private Paint fpsPaint;
     private DrawThread drawThread;
     private DialRenderer dialRenderer;
     private TouchControls touchControls;
     private MainContent content;
+    private boolean wasGpsEnabled;
 
-    public MainSurfaceView(MainActivity mainActivity) {
-        super(mainActivity);
+    public MainSurfaceView(MainActivity activity) {
+        super(activity);
 
         content = MainContent.get();
 
@@ -36,15 +38,15 @@ public class MainSurfaceView extends SurfaceView implements SurfaceHolder.Callba
 
         dialRenderer = new DialRenderer();
         touchControls = new TouchControls(content.getCarSimulation());
-        touchControls.setGpsToggleDelegate(content);
+        touchControls.setGpsToggleDelegate(this);
         touchControls.setFpsToggleDelegate(this);
+        wasGpsEnabled = content.isGpsEnabled();
     }
 
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
         Log.i("view", "Surface Created");
 
-        content.setDelegate(this);
         showGpsEnable(content.isGpsToggled());
 
         if (drawThread == null) {
@@ -64,8 +66,6 @@ public class MainSurfaceView extends SurfaceView implements SurfaceHolder.Callba
     @Override
     public void surfaceDestroyed(SurfaceHolder holder) {
         Log.i("view", "Surface Destroyed");
-
-        content.setDelegate(null);
 
         boolean retry = true;
         while (retry) {
@@ -108,6 +108,15 @@ public class MainSurfaceView extends SurfaceView implements SurfaceHolder.Callba
     }
 
     public void update(double secondsPerFrame) {
+        boolean gpsEnabled = content.isGpsEnabled();
+
+        showGpsEnable(gpsEnabled);
+
+        if (gpsEnabled != wasGpsEnabled) {
+            dialRenderer.reset();
+        }
+        wasGpsEnabled = gpsEnabled;
+
         content.getCar().update(secondsPerFrame);
         dialRenderer.update(content.getCar().getSpeed(), secondsPerFrame);
     }
@@ -153,6 +162,14 @@ public class MainSurfaceView extends SurfaceView implements SurfaceHolder.Callba
 
     @Override
     public void onPress(TouchControl control) {
+        if (control == touchControls.fps) {
+            onPressFps();
+        } else if (control == touchControls.gps) {
+            onPressGps();
+        }
+    }
+
+    public void onPressFps() {
         int fps = content.targetFps / 2;
         if (fps < 15) {
             fps = 60;
@@ -161,19 +178,12 @@ public class MainSurfaceView extends SurfaceView implements SurfaceHolder.Callba
         drawThread.setTargetFps(content.targetFps);
     }
 
-    @Override
-    public void onGpsEnabled(boolean enabled) {
-        Log.i("view", "gps enabled:"+enabled);
-        showGpsEnable(enabled);
-        dialRenderer.reset();
+    public void onPressGps() {
+        content.toggleGps((Activity) this.getContext());
     }
 
     private void showGpsEnable(boolean enabled) {
         touchControls.setGpsOn(enabled);
     }
 
-    @Override
-    public void onGpsActive(boolean active) {
-        Log.i("view", "gps active:"+active);
-    }
 }

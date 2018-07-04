@@ -22,7 +22,7 @@ public class GpsManager implements GpsStatus.Listener, LocationListener {
 
     private static final String TAG = GpsManager.class.getSimpleName();
 
-    public interface GpsManagerListener {
+    public interface GpsManagerDelegate {
         public void onGpsSpeed(Float metersPerSecond);
         public void onGpsOn();
         public void onGpsOff();
@@ -32,7 +32,7 @@ public class GpsManager implements GpsStatus.Listener, LocationListener {
     private static final int gpsMinDistance = 0;
 
     private LocationManager locationManager;
-    private GpsManagerListener listener;
+    private GpsManagerDelegate delegate;
 
     public void startListening(Activity activity) {
         Log.i(TAG, "Starting listening");
@@ -109,10 +109,10 @@ public class GpsManager implements GpsStatus.Listener, LocationListener {
         Log.i(TAG, "status changed: " + event);
         switch (event) {
             case GpsStatus.GPS_EVENT_STARTED:
-                listener.onGpsOn();
+                delegate.onGpsOn();
                 break;
             case GpsStatus.GPS_EVENT_STOPPED:
-                listener.onGpsOff();
+                delegate.onGpsOff();
                 break;
         }
     }
@@ -121,9 +121,7 @@ public class GpsManager implements GpsStatus.Listener, LocationListener {
     public void onLocationChanged(Location location) {
         Log.i(TAG, "location changed: " + location);
 
-        listener.onGpsSpeed(location.getSpeed());
-
-//        listener.onGpsSpeed((float) (Math.random() * 30));
+        delegate.onGpsSpeed(location.getSpeed());
     }
 
     @Override
@@ -141,7 +139,7 @@ public class GpsManager implements GpsStatus.Listener, LocationListener {
         Log.i(TAG, "location on provider disabled: " + provider);
     }
 
-    public void setListener(GpsManagerListener listener) {
-        this.listener = listener;
+    public void setDelegate(GpsManagerDelegate delegate) {
+        this.delegate = delegate;
     }
 }
